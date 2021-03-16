@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+	body {
+	  background-color: #fff;
+	  color: #111;
+	  margin: 0px;
+	  overflow: hidden;
+	font-family: Monospace;
+	  font-size: 20px;
+	}
+	
+	#info {
+	  position: absolute;
+	  top: 0px;
+	  width: 100%;
+	  padding: 5px;
+	  text-align: center;
+	  color: #ffff00
+	}
+	
+	a {
+	  color: #00ffff
+	}
+	
+	strong {
+	  color: red
+	}
+	
+	#container {
+	  z-index: 0;
+	  left: 0px;
+	  top: 0px;
+	  overflow: hidden;
+	  position: absolute;
+	  width: 100%;
+	  height: 100%;
+	}
+
+
+</style>
+</head>
+
+<body> 
+<div id="info">
+  IK of Two-Link Arm
+  <br>
+  <br> ( generic CCD Solver )
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/107/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://jyunming-chen.github.io/game3js/js/ccdsys.js"></script>
+<script>
+var scene, renderer, camera;
+
+var puck;
+var raycaster;
+var mouse = new THREE.Vector2();
+var pickables = [];
+
+/////////////////////////
+var twoLinker0, twoLinker1;
+
+class TwoLinker  {
+	constructor (L1, L2) {
+    this.theta1 = 0;
+    this.theta2 = 0,
+    this.target = new THREE.Vector3();
+  
+  	// build arm ...
+    this.body = new THREE.Object3D();
+
+	this.link1 = makeLink (L1);
+    this.link2 = makeLink (L2);
+
+	this.body.add (this.link1);
+    this.link1.add (this.link2);
+    this.link2.position.set (L1,0,0);
+
+      // base
+      let cyl_geom = new THREE.CylinderGeometry(10, 10, 6, 32);
+      let cyl_mat = new THREE.MeshBasicMaterial({
+        color: 0xff2211
+      });
+      let base = new THREE.Mesh(cyl_geom, cyl_mat);
+    this.body.add(base);
+	
+		// ccdSys: to be added later
+  
+  }
+  update (thetas) {// pass jointAngleArray
+      this.theta1 = thetas[0];
+      this.theta2 = thetas[1];
+	  this.link1.rotation.y = this.theta1;
+  	  this.link2.rotation.y = this.theta2;
+    }
+  }
+
+init();
+animate();
+
+////////////////////////////////////////////////////////
+// forward kinematics
+function fk (theta, joints) {  // all memory assumed in place
+  joints[0].set (0,0,0);
+  
+  var localzero = new THREE.Vector3(0, 0, 0);
+  var m = new THREE.Matrix4();
+  m.makeRotationY(theta[0]);
+  m.multiply(new THREE.Matrix4().makeTranslation(50, 0, 0));
+  localzero.applyMatrix4(m);
+  joints[1].copy(localzero);
+
+  localzero.set(0, 0, 0);
+  m.multiply(new THREE.Matrix4().makeRotationY(theta[1]));
+  m.multiply(new THREE.Matrix4().makeTranslation(50, 0, 0));
+  localzero.applyMatrix4(m);
+  joints[2].copy(localzero);
+}
+
+
+////////////////////////////////////////////////////////////////
+function init() {
+
+  renderer = new THREE.WebGLRenderer({
+    antialias: true
+  });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+
+	scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 3000);
+  camera.position.y = 160;
+  camera.position.z = 400;
+  camera.lookAt(new THREE.Vector3(0, 0, 0));
+  document.body.appendChild(renderer.domElement);
+  let controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  var gridXZ = new THREE.GridHelper(200, 20, 'red', 'white');
+  scene.add(gridXZ);
+  window.addEventListener('resize', onWindowResize, false);
+
+  /////////////////////////////////////////////////////////////////////
+  let plane = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.5,
+    visible: true,
+    color: 'pink'
+  }));
+  scene.add(plane);
+  plane.rotation.x = -Math.PI / 2;
+  pickables = [plane];
+
+  puck = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 2, 20), new THREE.MeshNormalMaterial());
+  scene.add(puck);
+
+  raycaster = new THREE.Raycaster();
+  document.addEventListener('mousemove', onDocumentMouseDown, false);
+
+	/////////////////////////////////////////////
+  twoLinker0 = new TwoLinker(50, 50);//twoLinker.init();
+  scene.add (twoLinker0.body);
+  
+  twoLinker0.body.position.set (0,0,100);
+  
+  // setting ccdSys
+  twoLinker0.ccdSys = new CCDSys (fk)
+  // axes are in local frame of twolink arm
+  twoLinker0.ccdSys.setCCDAxis (new THREE.Vector3(0,1,0), 0)
+  twoLinker0.ccdSys.setCCDAxis (new THREE.Vector3(0,1,0), 1, -3.1, -0.01)  
+
+  //////////////
+  twoLinker1 = new TwoLinker(50, 50);//twoLinker.init();
+  scene.add (twoLinker1.body);
+  
+  twoLinker1.body.position.set (0,0,-100);
+  
+  // setting ccdSys
+  twoLinker1.ccdSys = new CCDSys (fk)
+  // axes are in local frame of twolink arm
+  twoLinker1.ccdSys.setCCDAxis (new THREE.Vector3(0,1,0), 0)
+  twoLinker1.ccdSys.setCCDAxis (new THREE.Vector3(0,1,0), 1, -3.1, -0.01)  
+
+}
+
+function makeLink(length) {
+  var oneLink = new THREE.Object3D();
+  var mesh = new THREE.Mesh(new THREE.BoxGeometry(length, 10,10), new THREE.MeshNormalMaterial());
+  oneLink.add(mesh);
+  mesh.position.set(length/2, 0, 0);
+  return oneLink;
+}
+
+function onWindowResize() {
+  let width = window.innerWidth;
+  let height = window.innerHeight;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+}
+
+function animate() {
+  
+  requestAnimationFrame(animate);
+  updateArms()
+  render();
+}
+
+function updateArms() {
+  var thetas = [twoLinker0.theta1, twoLinker0.theta2];
+  
+	// target is from mousedown callback
+	twoLinker0.ccdSys.solve (twoLinker0.target, thetas);
+	twoLinker0.update (thetas)
+
+ thetas = [twoLinker1.theta1, twoLinker1.theta2];
+  
+	// target is from mousedown callback
+	twoLinker1.ccdSys.solve (twoLinker1.target, thetas);
+	twoLinker1.update (thetas)
+  
+	// target is from mousedown callback
+	twoLinker0.ccdSys.solve (twoLinker0.target, thetas);
+	twoLinker0.update (thetas)
+}
+
+
+function render() {
+  renderer.render(scene, camera);
+}
+
+
+
+function onDocumentMouseDown(event) {
+
+ // event.preventDefault();
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  // find intersections
+  raycaster.setFromCamera(mouse, camera);
+  var intersects = raycaster.intersectObjects(pickables);
+  if (intersects.length > 0) {
+    puck.position.copy(intersects[0].point);
+    //twoLinker.target.copy (intersects[0].point);
+    // this is not enough ...
+    
+    twoLinker0.target.copy ( twoLinker0.body.worldToLocal (puck.position.clone()) )  
+    twoLinker1.target.copy ( twoLinker1.body.worldToLocal (puck.position.clone()) )  
+  }
+}
+
+
+
+</script>
+</body>
+
+</html>

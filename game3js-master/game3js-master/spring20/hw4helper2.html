@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+#info {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+
+body {
+  overflow: hidden;
+}
+
+
+</style>
+</head>
+
+<body> 
+<div id="info">biped walking
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/107/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js">
+</script>
+<script src="ccdsys.js"></script>
+<script src="https://raw.githack.com/mrdoob/three.js/dev/examples/js/misc/Gyroscope.js"></script>
+<script>
+
+// make your own copy of ccdsys.js
+// line 48: MAXITER = 40 
+//
+ 
+var biped = {
+  thetaGroin: 0.31,
+  thetaKnee: 0.6, 
+  target: new THREE.Vector3(),
+  
+  init: function() {
+	let body = new THREE.Object3D();
+	let mat = new THREE.MeshNormalMaterial();
+  
+  	this.thigh = new THREE.Object3D();
+  	let thighMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L2, 1), mat)
+  	this.thigh.add (thighMesh)
+  	thighMesh.position.y = -L2/2
+  
+  	this.leg = new THREE.Object3D()
+  	let legMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L1, 1), mat)
+  	this.leg.add (legMesh)
+  	legMesh.position.y = -L1/2
+  	this.leg.position.y = -L2
+  
+  	this.torso = new THREE.Object3D();
+  	let torsoMesh = new THREE.Mesh (new THREE.BoxGeometry(1, Lh, 1), mat)
+  	this.torso.add (torsoMesh)
+  	torsoMesh.position.y = Lh/2
+  
+  	body.add (this.torso)
+  	body.add (this.thigh)
+  	this.thigh.add (this.leg)
+  	return body;
+  },
+  
+  update: function (theta) {
+  	this.thetaGroin = theta[0]
+    this.thetaKnee = theta[1]
+  
+    this.thigh.rotation.z = this.thetaGroin
+    this.leg.rotation.z = this.thetaKnee;  
+  }
+
+
+}
+
+///////////////////////////////////////////////////
+var camera, scene, renderer;
+
+const LS = 5.3
+const L2 = 5.2
+const L1 = 4.8
+const Lh = 3.3
+const Hh = 8.3  // tunable ...
+const Hr = 0.6;
+const Ts = 1;
+const Fc = 1.0;
+
+const Vf = LS/Ts;
+
+var body;
+// markers ...
+var bodyball, leftfootball, rightfootball;
+var leftpos = [0,0];
+var rightpos = [LS,0];
+var bodypos = [LS/2,0];
+
+var clock = new THREE.Clock();
+var cumtime = 0;
+var nowTime = clock.getElapsedTime();
+
+
+init();
+animate();
+
+function fk (theta, joints) {  // all memory assumed in place
+  joints[0].set (0,0,0);
+  
+  var localzero = new THREE.Vector3(0, 0, 0);
+  var m = new THREE.Matrix4();
+  m.makeRotationZ(theta[0]);
+  m.multiply(new THREE.Matrix4().makeTranslation(0, -L2, 0));
+  localzero.applyMatrix4(m);
+  joints[1].copy(localzero);
+
+  localzero.set(0, 0, 0);
+  m.multiply(new THREE.Matrix4().makeRotationZ(theta[1]));
+  m.multiply(new THREE.Matrix4().makeTranslation(0, -L1, 0));
+  localzero.applyMatrix4(m);
+  joints[2].copy(localzero);
+}
+
+function init() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+  camera.position.z = 50;
+
+  var gridXZ = new THREE.GridHelper(200, 20, 'red', 'white');
+  scene.add(gridXZ);
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+
+  let controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  document.body.appendChild(renderer.domElement);
+  ///////////////////////////////////////////////////////////
+  bodyball = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'white'}));
+  leftfootball = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'green'}));
+  rightfootball = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'red'}));
+  scene.add (bodyball, rightfootball, leftfootball);
+  
+  body = biped.init();
+  scene.add (body)
+  
+  biped.ccdSys = new CCDSys (fk)
+  biped.ccdSys.setCCDAxis (new THREE.Vector3(0,0,1), 0, -Math.PI/2, Math.PI/2)
+  biped.ccdSys.setCCDAxis (new THREE.Vector3(0,0,1), 1, -Math.PI, -1e-3)
+  
+  var gyro = new THREE.Gyroscope();
+  scene.add (gyro)
+  gyro.add (camera);
+  bodyball.add (gyro);
+}
+
+function trackers(tt) {
+   var body = [LS/2+LS*tt/Ts, Hh - Hr/2*Math.cos(2*Math.PI*tt/Ts)];
+   var n = Math.floor (tt/Ts);
+   
+   //return bodyElevation & footElevation
+   return [Hh - Hr/2*Math.cos(2*Math.PI*tt/Ts),
+  		   Fc/2 - Fc/2*Math.cos(2*Math.PI*tt/Ts)];
+}
+
+function animate() {
+
+  requestAnimationFrame(animate);
+  render();
+
+  var tt = clock.getElapsedTime();
+  var data = trackers (tt);
+
+  // compute my own delta ...
+  var dt = tt - nowTime;
+  cumtime += dt;
+  nowTime = tt;
+  
+  
+  bodypos[0] += Vf*dt;
+  bodypos[1] = data[0];
+
+  var n = Math.floor(tt/Ts);
+  // n is even: left is swing
+  // n is odd:  right is swing
+  if (Math.floor(n/2)*2 === n) { // n is even
+  	leftpos[1] = data[1];
+  	leftpos[0] += 2*Vf*dt;
+  } else { // n is odd
+  	rightpos[1] = data[1];
+  	rightpos[0] += 2*Vf*dt;
+  }
+
+  // move markers ...  
+  bodyball.position.set (bodypos[0], bodypos[1], 0);	
+  leftfootball.position.set (leftpos[0], leftpos[1], 0);	
+  rightfootball.position.set (rightpos[0], rightpos[1], 0);	
+
+  body.position.set (bodypos[0], bodypos[1], 0);
+  let thetas = [0,0]
+  biped.target.copy (body.worldToLocal (new THREE.Vector3(leftpos[0], leftpos[1], 0)))
+  biped.ccdSys.solve (biped.target, thetas)
+    
+  biped.update (thetas)	
+
+}
+
+function render() {
+  renderer.render(scene, camera);
+}
+
+
+
+</script>
+</body>
+
+</html>

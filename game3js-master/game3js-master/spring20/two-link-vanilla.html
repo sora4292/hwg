@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+	body {
+	  background-color: #f00;
+	  color: #111;
+	  margin: 0px;
+	  overflow: hidden;
+	  font-family: Monospace;
+	  font-size: 20px;
+	}
+	
+	#info {
+	  position: absolute;
+	  top: 0px;
+	  width: 100%;
+	  padding: 5px;
+	  text-align: center;
+	  color: #ffff00
+	}
+	
+	#container {
+	  z-index: 0;
+	  left: 0px;
+	  top: 0px;
+	  overflow: hidden;
+	  position: absolute;
+	  width: 100%;
+	  height: 100%;
+	}
+</style>
+</head>
+
+<body> 
+<div id="info">
+Two-Link Arm  <br><br> 
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://jyunming-chen.github.io/game3js/js/ccdbox.js"></script>
+<script>
+var scene, renderer, camera;
+var link1, link2, theta1, theta;
+
+var joints = []; // world pos of three joints
+var axes = [];
+
+var target = new THREE.Vector3();
+var xx = 0; sign = 1;
+
+init();
+animate();
+
+function init() {
+
+  renderer = new THREE.WebGLRenderer({
+    antialias: true
+  });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+  camera.position.y = 160;
+  camera.position.z = 400;
+  camera.lookAt(new THREE.Vector3(0, 0, 0));
+  document.body.appendChild(renderer.domElement);
+  
+  let controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  var gridXZ = new THREE.GridHelper(200, 20, 'red', 'white');
+  scene.add(gridXZ);
+  window.addEventListener('resize', onWindowResize, false);
+
+  //////////////////////////////////////////////////
+  link1 = makeLink(60);
+  scene.add (link1);
+  link2 = makeLink(90);
+  link1.add (link2);
+  link2.position.set (60,0,0);
+	
+  theta1 = Math.PI/6
+  theta2 = Math.PI/10;
+  
+  // base
+  var cyl_geom = new THREE.CylinderGeometry(10, 10, 6, 32);
+  var cyl_mat = new THREE.MeshBasicMaterial({
+    color: 0xff2211
+  });
+  var base = new THREE.Mesh(cyl_geom, cyl_mat);
+  scene.add(base);
+
+}
+
+function makeLink(length) {
+  var oneLink = new THREE.Object3D();
+  var mesh = new THREE.Mesh(new THREE.BoxGeometry(length, 10,10), 
+  	new THREE.MeshNormalMaterial());
+  oneLink.add(mesh);
+  mesh.position.set(length/2, 0, 0);
+  return oneLink;
+}
+
+function onWindowResize() {
+  var width = window.innerWidth;
+  var height = window.innerHeight;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+}
+
+function animate() {
+  
+  requestAnimationFrame(animate);
+  render();
+}
+
+function render() {
+
+  link1.rotation.y = theta1;
+  link2.rotation.y = theta2;
+
+  renderer.render(scene, camera);
+}
+
+
+
+</script>
+</body>
+
+</html>

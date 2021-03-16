@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+	#info {
+		position: absolute;
+		top: 0px; width: 100%;
+		font-family: Monospace;
+		font-size: 20px;
+		padding: 5px;
+		text-align: center;
+		color: #003333
+	}
+	a {color: purple}
+</style>
+</head>
+
+<body>
+
+  <div id = "info"> 
+	 <br>Sound, BGM, and Collision<br><br>
+	 with BGM (<a href="javascript:toggle();">dimmer</a>)<br>
+	<button id="play" style="width:20%">Play</button> 
+	<br> <a href="https://developers.google.com/web/updates/2017/09/autoplay-policy-changes">Chrome autoplay policy change</a>
+
+  </div>
+  
+<audio id="collisionsound" style="display:none">
+<source src="https://jyunming-chen.github.io/game3js/gameHWhelpers/sounds/collision3.wav" muted type='audio/wav'>
+</audio>
+
+<audio id="soundtrack" autoplay loop style="display:none">
+<source src="https://jyunming-chen.github.io/game3js/gameHWhelpers/sounds/KennyG.mp3" type='audio/mp3'>
+</audio>
+
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+<script>
+
+$('#play').click ( function() {
+	isPaused = !isPaused;
+	if (isPaused) { 
+		$('#play').text ('Play')
+		soundTrack.pause()
+	} else {
+		$('#play').text ('Pause')
+		soundTrack.play()
+	}
+});
+
+var scene, renderer, camera;
+
+var collisionSound, soundTrack;
+var isDimming = false, soundVal = 1.0, sign = 1.0;
+var isPaused = false;
+
+
+init();
+animate();
+
+function toggle() {
+	isDimming = !isDimming;
+	sign = isDimming ? -1 : 1;
+	// console.log (isDimming);
+}
+
+function init() {
+
+	collisionSound = document.getElementById ('collisionsound');
+	soundTrack = document.getElementById ('soundtrack');
+//	soundTrack.play();
+/*	
+	renderer = new THREE.WebGLRenderer( {antialias:true} );
+	var width = window.innerWidth;
+	var height = window.innerHeight;
+	renderer.setSize (width, height);
+	renderer.setClearColor (0xeeeeee);
+	document.body.appendChild (renderer.domElement);
+
+	scene = new THREE.Scene();
+*/
+}
+
+function animate() {
+/*
+	soundVal += sign*0.01;
+	soundVal = THREE.Math.clamp (soundVal, 0, 1);
+	soundtrack.volume = soundVal;
+*/
+	requestAnimationFrame ( animate );  
+}
+
+
+
+
+</script>
+</body>
+
+</html>

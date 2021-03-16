@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+	body {
+	  background-color: #f00;
+	  color: #111;
+	  margin: 0px;
+	  overflow: hidden;
+	  font-family: Monospace;
+	  font-size: 20px;
+	}
+	
+	#info {
+	  position: absolute;
+	  top: 0px;
+	  width: 100%;
+	  padding: 5px;
+	  text-align: center;
+	  color: #ffff00
+	}
+	
+	#container {
+	  z-index: 0;
+	  left: 0px;
+	  top: 0px;
+	  overflow: hidden;
+	  position: absolute;
+	  width: 100%;
+	  height: 100%;
+	}
+</style>
+</head>
+
+<body> 
+<div id="info">
+Two-Link Arm  <br><br> 
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5.1/dat.gui.min.js"></script>
+
+<script>
+var scene, renderer, camera;
+var link1, link2, theta1, theta;
+
+var gcontrols = {theta1: 0.1, theta2: 0.1};
+var pose1 = {theta1: 0.35, theta2: 0.38};
+var pose2 = {theta1: 1.87, theta2: 1.04};
+var keys = [
+  [0, pose1],
+  [0.5, pose2],
+  [1, pose1]
+];
+var T = 2;
+var clock = new THREE.Clock();
+var ts = clock.getElapsedTime()
+var intKey =[];
+
+//////////////////////////////////////////////////
+init();
+animate();
+
+function init() {
+
+  renderer = new THREE.WebGLRenderer({
+    antialias: true
+  });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+  camera.position.y = 160;
+  camera.position.z = 400;
+  camera.lookAt(new THREE.Vector3(0, 0, 0));
+  document.body.appendChild(renderer.domElement);
+  
+  let controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  var gridXZ = new THREE.GridHelper(200, 20, 'red', 'white');
+  scene.add(gridXZ);
+  window.addEventListener('resize', onWindowResize, false);
+
+  //////////////////////////////////////////////////
+  link1 = makeLink(60);
+  scene.add (link1);
+  link2 = makeLink(90);
+  link1.add (link2);
+  link2.position.set (60,0,0);
+  
+  // base
+  var cyl_geom = new THREE.CylinderGeometry(10, 10, 6, 32);
+  var cyl_mat = new THREE.MeshBasicMaterial({
+    color: 0xff2211
+  });
+  var base = new THREE.Mesh(cyl_geom, cyl_mat);
+  scene.add(base);
+  
+  ///////////////////////
+   var gui = new dat.GUI( {load: loadJSON()}  );
+   gui.remember (gcontrols)
+   gui.add(gcontrols, 'theta1', 0, 3.2);
+   gui.add(gcontrols, 'theta2', 0.1, 3);
+
+}
+
+function makeLink(length) {
+  var oneLink = new THREE.Object3D();
+  var mesh = new THREE.Mesh(new THREE.BoxGeometry(length, 10,10), 
+  	new THREE.MeshNormalMaterial());
+  oneLink.add(mesh);
+  mesh.position.set(length/2, 0, 0);
+  return oneLink;
+}
+
+function onWindowResize() {
+  var width = window.innerWidth;
+  var height = window.innerHeight;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+}
+
+function loadJSON(){
+  return {
+  "preset": "pose1",
+  "remembered": {
+    "Default": {
+      "0": {
+        "theta1": 0.1,
+        "theta2": 0.1
+      }
+    },
+    "pose1": {
+      "0": {
+        "theta1": 0.3468248187840324,
+        "theta2": 0.38287899282072635
+      }
+    },
+    "pose2": {
+      "0": {
+        "theta1": 1.872854021433775,
+        "theta2": 1.042929976069088
+      }
+    }
+  },
+  "closed": false,
+  "folders": {}
+}
+}
+
+
+function keyframe(t) {
+  var s = ((t - ts) % T) / T;
+
+  for (var i = 1; i < keys.length; i++) {
+    if (keys[i][0] > s) break;
+  }
+    
+  // take i-1
+  var ii = i - 1;
+  var a = (s - keys[ii][0]) / (keys[ii + 1][0] - keys[ii][0]);
+  console.log (a)
+  intKey = [keys[ii][1].theta1 * (1 - a) + keys[ii + 1][1].theta1 * a,
+    keys[ii][1].theta2 * (1 - a) + keys[ii + 1][1].theta2 * a
+  ];
+
+}
+
+function animate() {
+  keyframe (clock.getElapsedTime())
+  requestAnimationFrame(animate);
+  render();
+}
+
+function render() {
+
+  link1.rotation.y = intKey[0] //gcontrols.theta1;
+  link2.rotation.y = intKey[1] //gcontrols.theta2;
+
+  renderer.render(scene, camera);
+}
+
+
+
+</script>
+</body>
+
+</html>

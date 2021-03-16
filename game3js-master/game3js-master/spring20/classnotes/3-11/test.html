@@ -1,0 +1,126 @@
+<html>
+<head>
+<style>
+#info {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+</style>
+</head>
+<body>
+<div id='info'><a href="javascript:toggleCamera();">toggle</a></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script>
+
+var scene, camera;
+var car;
+var theta = 0;
+var useThirdPersonCamera = false;
+var controls;
+
+function toggleCamera() {
+	useThirdPersonCamera = !useThirdPersonCamera;
+	if (useThirdPersonCamera == false) {
+		controls.enabled = true;
+		camera.lookAt (new THREE.Vector3(0,0,0));
+	} else {
+		controls.enabled = false;
+	}
+}
+
+init();
+animate();
+
+
+function init() {
+
+   // setup renderer, scene, camera
+   
+   renderer = new THREE.WebGLRenderer();
+   
+   width = window.innerWidth;
+   height = window.innerHeight;
+   
+   renderer.setSize (width, height);
+   document.body.appendChild (renderer.domElement);
+   renderer.setClearColor (0x888888)
+      
+   scene = new THREE.Scene();
+   camera = new THREE.PerspectiveCamera (90, width/height, 1, 1000);
+   
+   controls = new THREE.OrbitControls (camera, renderer.domElement);
+   
+   camera.position.set (0, 40, 150);
+   
+   // set up objects in the scene
+   var gridHelper = new THREE.GridHelper( 200, 20, 'red', 'white');
+   scene.add( gridHelper );
+   
+   window.addEventListener ('resize', onWindowResize, false);
+   
+   /////////////////////////////////
+   /*
+   boxG = new THREE.BoxGeometry (40,10,20);
+   box = new THREE.Mesh (boxG, new THREE.MeshNormalMaterial());
+   scene.add (box);
+   */
+   geometry = new THREE.Geometry();
+   geometry.vertices.push (
+   	new THREE.Vector3(30,0,0),
+   	new THREE.Vector3(0,15,0),
+   	new THREE.Vector3(0,0,-15),
+   	new THREE.Vector3(0,0,15)
+   );
+   geometry.faces.push (
+    new THREE.Face3 (0,1,3),
+    new THREE.Face3 (1,0,2),
+    new THREE.Face3 (1,2,3),
+    new THREE.Face3 (2,0,3)
+   );
+   
+   geometry.computeFaceNormals();
+   //geometry.computeVertexNormals();
+   
+   car = new THREE.Mesh (geometry, new THREE.MeshNormalMaterial());
+   scene.add (car);
+}
+
+function onWindowResize() {
+
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+}
+
+function animate() {
+	renderer.render (scene, camera);
+	
+	theta += 0.02; // theta: radian
+	car.rotation.y = Math.PI/2 + theta;
+	
+	// move the box ....
+	car.position.set (60*Math.cos(theta), 0, -60*Math.sin(theta));
+	
+	if (useThirdPersonCamera) {
+	// third person camera
+	var d = Math.PI/6;
+	var h = 50;
+	camera.position.set (60*Math.cos(theta-d), h, -60*Math.sin(theta-d));	
+	camera.lookAt (car.position);
+	}
+	
+	requestAnimationFrame (animate);
+}
+
+
+</script>
+
+</body>
+</html>

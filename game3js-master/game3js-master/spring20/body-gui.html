@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+	body {
+	  background-color: #fff;
+	  color: #111;
+	  margin: 0px;
+	  overflow: hidden;
+	  font-family: Monospace;
+	  font-size: 20px;
+	}
+	
+	#info {
+	  position: absolute;
+	  top: 0px;
+	  width: 100%;
+	  padding: 5px;
+	  text-align: center;
+	  color: #ffff00
+	}
+	
+	a {
+	  color: #00ffff
+	}
+	
+	strong {
+	  color: red
+	}
+	
+	#container {
+	  z-index: 0;
+	  left: 0px;
+	  top: 0px;
+	  overflow: hidden;
+	  position: absolute;
+	  width: 100%;
+	  height: 100%;
+	}
+
+
+</style>
+</head>
+
+<body> 
+<div id="info">
+  Body Helper
+  <br>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
+
+<script>
+var scene, renderer, camera;
+var body, lowerArm, upperArm;
+var gcontrols = {
+	sZ: 0.01,  // s for shoulder
+	sX: 0.02,
+	sY: 0.01,
+	eX: 0.03,  // e for elbow
+	posY: 0.01
+};
+
+///////////////////////
+init();
+animate();
+
+function buildBody () {
+
+	var body = new THREE.Object3D();
+
+	let boxGeometry;
+	boxGeometry = new THREE.BoxGeometry(50, 100, 30);
+  let torso = new THREE.Mesh(boxGeometry, new THREE.MeshNormalMaterial());
+  torso.position.set(0, 50, 0);
+  body.add(torso);
+
+  let arm;
+  upperArm = new THREE.Object3D();
+  boxGeometry = new THREE.BoxGeometry(10, 40, 10);
+  arm = new THREE.Mesh(boxGeometry, new THREE.MeshNormalMaterial());
+  upperArm.add(arm);
+  arm.position.set(-5, -20, 0);
+  body.add(upperArm);
+  upperArm.position.set(-25, 100, 0);
+
+  lowerArm = new THREE.Object3D();
+  boxGeometry = new THREE.BoxGeometry(10, 60, 10);
+  arm = new THREE.Mesh(boxGeometry, new THREE.MeshNormalMaterial());
+  lowerArm.add(arm);
+  arm.position.set(-5, -30, 0);
+  lowerArm.position.set(0, -40, 0);
+  upperArm.add(lowerArm);
+
+	return body;
+}
+
+function init() {
+
+  var width = window.innerWidth;
+  var height = window.innerHeight;
+
+  renderer = new THREE.WebGLRenderer({
+    antialias: true
+  });
+  renderer.setSize(width, height);
+  renderer.setClearColor(0x888888);
+
+  document.body.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 10000);
+  camera.position.y = 160;
+  camera.position.z = 400;
+  camera.lookAt(new THREE.Vector3(0, 0, 0));
+  scene.add(camera);
+
+  let controls = new THREE.OrbitControls(camera, renderer.domElement);
+ 	let gridXZ = new THREE.GridHelper(200, 20, 'red', 'white');
+  scene.add(gridXZ);
+  
+  window.addEventListener('resize', onWindowResize, false);
+	/////////////////////////////////////////////////////////////////////////////
+  body = buildBody ();
+  scene.add (body)
+  //body.position.set(0, 0, -35);
+
+  var gui = new dat.GUI();
+  gui.add (gcontrols, 'sZ', -3.2, 0);
+  gui.add (gcontrols, 'sX', -3.2, 3.2);
+  gui.add (gcontrols, 'sY', -3.2, 3.2);
+  gui.add (gcontrols, 'eX', -3, 0);
+  gui.add (gcontrols, 'posY', 0, 20);
+}
+
+
+function animate() {
+  requestAnimationFrame(animate);
+  render();
+}
+
+function onWindowResize() {
+  var width = window.innerWidth,
+    height = window.innerHeight;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+}
+
+
+function render() {
+
+	upperArm.rotation.z = gcontrols.sZ//theta1; //-Math.PI/6;//theta1;
+  upperArm.rotation.y = gcontrols.sY//theta2; //-Math.PI/3;//theta2;
+  upperArm.rotation.x = gcontrols.sX//theta2; //-Math.PI/3;//theta2;
+  upperArm.rotation.order = 'ZXY';
+
+  lowerArm.rotation.x = gcontrols.eX//theta3; //-Math.PI/4;//theta3;
+	
+  body.position.y = gcontrols.posY;
+	
+  renderer.render(scene, camera);
+}
+
+
+</script>
+</body>
+
+</html>
